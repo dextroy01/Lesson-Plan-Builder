@@ -1,6 +1,8 @@
 from google import genai
+from dotenv import load_dotenv
 from google.genai import types
 from pydantic import BaseModel
+import os
 
 class Gemini_Output_Format(BaseModel):
    test: bool
@@ -8,15 +10,15 @@ class Gemini_Output_Format(BaseModel):
    other: int
 
 class Agent_Caller:
-   ''''''''''''''''''''''
-    DELETE ME I AM THE API KEY
-    '''''''''''''''''''''
-   my_api_key : str = "AIzaSyBd8P1mI1adz8AhfvUVFv-OpOjWUkVXNF4"
 
    ''''''''''''''''''''''
    Gemini test code
     '''''''''''''''''''''
-   client = genai.Client(api_key = my_api_key)
+   load_dotenv()
+
+
+   client = genai.Client(api_key = os.getenv("GEMINI_API_Key"))
+
 
    config_dict = {'system_instruction': 'this is test', 'response_mime_type': 'application/json'}
 
