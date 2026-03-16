@@ -15,9 +15,8 @@
     },
 
     "Email_Data": {
-        "sender": "dexfoxallen@gmail.com",
-        "receiver": "dexfoxallen@gmail.com",
-        "gemini_output": {}
+        "my_inbox": "dexfoxallen@gmail.com",
+        "receiver": "dexfoxallen@gmail.com"
     }
 
 }

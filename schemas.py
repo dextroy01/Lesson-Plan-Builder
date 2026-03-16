@@ -17,6 +17,5 @@ class GeminiPromptAnatomy(BaseModel):
     output_format: str 
 
 class EmailConfigurations(BaseModel):
-    sender: str
+    my_inbox: str
     receiver: str
-    gemini_output: dict
