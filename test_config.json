@@ -1,0 +1,23 @@
+{
+    "FIle Name" : "Test configuration",
+
+    "Prompt Anatomy": {
+        "role": "test role",
+        "task": "confirm you are receiving all these tests",
+        "context":"test context", 
+        "output_format": "test format"
+    },    
+
+    "Gemini Configurations": {
+        "gemini_version": "gemini-3-flash-preview",
+        "system_instruction": "this is test",
+        "response_mime_type":"application/json"
+    },
+
+    "Email_Data": {
+        "sender": "dexfoxallen@gmail.com",
+        "receiver": "dexfoxallen@gmail.com",
+        "gemini_output": {}
+    }
+
+}
