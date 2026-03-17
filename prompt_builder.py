@@ -2,64 +2,111 @@ import pandas as pd
 from google import genai
 from google.genai import types
 import json
-from schemas import GeminiConfigurations, GeminiOutputFormat, GeminiPromptAnatomy
+import time
+import os
+from dotenv import load_dotenv
+from schemas import GeminiOutputFormat, GeminiPromptAnatomy
+from data_interface import DataInterface
 
 class PromptBuilder:
-    def __init__(self, client: genai.Client, configurations: GeminiConfigurations, prompt_anatomy : GeminiPromptAnatomy):
+    def __init__(self, client: genai.Client,  prompt_anatomy : GeminiPromptAnatomy):
         self.client = client
-        self.configurations = configurations
         self.prompt_anatomy = prompt_anatomy
-        self.final_prompt = ""
-        self.past_lessons: str | None = None
-        
-    def read_past_lessons(self, filepath: str) -> None:
         self.past_lessons = ""
-        past_lessons_data = pd.read_csv(filepath)
-        for index, row in past_lessons_data.iterrows():
-            self.past_lessons += (f"lesson {index}:\n {row.to_string()}\n\n")
+        self.final_prompt = ""
+        
+        
+    def get_past_lessons(self, past_lessons : list) -> None:
+        for id, row in enumerate(past_lessons):
+            lesson = f"Lesson {id}:\n"
+            lesson += f"Title: {row[0]}\n"
+            lesson += f"Lesson Body: {row[1]}\n"
+            lesson += f"Lesson Review {row[2]}\n"
+            lesson += "-----------------------------------------\n"
+            self.past_lessons += lesson
     
+
     def create_final_prompt(self) -> None:
         for key, value in self.prompt_anatomy.model_dump().items():
             self.final_prompt += f"{key}: {value}\n\n"
         self.final_prompt += f"past lessons:\n\n{self.past_lessons}"
+    
+    
+    def call_deep_research(self,):
+            interaction = self.client.interactions.create(agent = "deep-research-pro-preview-12-2025",
+                                                    input = self.final_prompt, 
+                                                    background = True,
+                                                    response_format = GeminiOutputFormat.model_json_schema(), 
+                                                    response_mime_type = "application/json")
+            print(f"research started: {interaction.id}")
 
-    def call_gemini(self) -> str:   
-        configurations_dict = self.configurations.model_dump()
-        gemini_version = configurations_dict.pop("gemini_version")
-        response = self.client.models.generate_content(model = gemini_version, 
-                                                       contents = self.final_prompt,
-                                                       config = types.GenerateContentConfig(**configurations_dict, response_schema = GeminiOutputFormat))     
+            while True:
+                interaction = self.client.interactions.get(interaction.id)
+                if interaction.status == "completed":
+                    print("Success: Created gemini deep research lesson")
+                    return (interaction.outputs[-1].text)
+                elif interaction.status == "failed":
+                    print(f"Research failed: {interaction.error}")
+                    break
+                print(".", end = "", flush = True)
+                time.sleep(10)
+            
+   
+    def format_using_gemini(self, raw_lesson_plan: str) -> GeminiOutputFormat:   
+        response = self.client.models.generate_content(model = "gemini-3-flash-preview", 
+                                                       contents = raw_lesson_plan,
+                                                       config = {'response_schema' : GeminiOutputFormat,
+                                                                 'response_mime_type': 'application/json',
+                                                                 'system_instruction': "Take the following lesson plan and extract it into the required JSON schema. Turn the body into html so it can be displayed as html"})     
         output = response.parsed 
+        print("Success: Used Gemini to format deep research lesson")
         return output  
 
-    def call_deep_research(self,) -> str:
-        pass
-        
+       
 if __name__ == "__main__":
-   
 
-    config_file_path = "test_config.json"
-    with open(config_file_path, "r") as file:
-        config_dict = json.load(file)
-
-    model_configurations = GeminiConfigurations(**config_dict["Gemini Configurations"])
-    prompt_anatomy = GeminiPromptAnatomy(**config_dict["Prompt Anatomy"])
+    print("In prompt builder\n")
     
-    master_client = genai.Client(api_key = my_api_key)
-    data_filepath = "test_data.csv"
+    load_dotenv()
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-    prompt_builder = PromptBuilder(master_client, model_configurations, prompt_anatomy)
-    prompt_builder.read_past_lessons(data_filepath)
+    file_path = "test_config.json"
+    email_configurations,  gemini_prompt_anatomy = DataInterface.read_config_data(file_path)
+    master_client = genai.Client(api_key = gemini_api_key)
+    database = DataInterface("testdatabase.db")
     
-    final_prompt = prompt_builder.create_final_prompt()
+    
+    test_1 = False
+    test_2 = True 
 
-    print("Input Prompt")
-    print(final_prompt)
-    
-    try:
-        output = prompt_builder.call_gemini(final_prompt)
-        print("\nGemini Output")
+    if test_1:
+        prompt_builder = PromptBuilder(master_client, gemini_prompt_anatomy)
+        past_lessons = database.fetch_all_lesson_data()
+        prompt_builder.get_past_lessons(past_lessons)
+        prompt_builder.create_final_prompt()
+
+        print("final prompt\n")
+        print(prompt_builder.final_prompt)
+
+        output = prompt_builder.call_deep_research()
+
+        print("Deep research output\n")
         print(output)
-    except Exception as exception_message:
-        print(f"error:  {exception_message}")
+    
+    elif test_2:
+        print("Test 2\n")
 
+        example_html = r"""
+            <div style="font-family: sans-serif;">
+                <h2>Test Lesson Title</h2>
+                <p>This is a test of the lesson body.</p>
+                <p><strong>Test Review:</strong> Test successful.</p>
+            </div>
+        """
+        prompt_builder = PromptBuilder(master_client, gemini_prompt_anatomy)
+        output = prompt_builder.format_using_gemini(example_html)
+
+        print("Example output:\n")
+        print(output)
+        print(type(output))
+    
